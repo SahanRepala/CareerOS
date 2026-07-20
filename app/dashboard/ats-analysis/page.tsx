@@ -55,10 +55,13 @@ const metricCards = [
 
 export default function AtsAnalysisPage() {
   const { user } = useAuth();
+  const supabase = createClient();
   const [jdText, setJdText] = useState('');
   const [analysisData, setAnalysisData] = useState<any>(null);
+  const [uploading, setUploading] = useState(false);
 
   const runAnalysis = async (resumeVersion: any, jobDescription: any) => {
+    if (!user) return;
     // 1. Check for cached result
     const { data: cachedResult } = await supabase
         .from('ats_results')
@@ -83,7 +86,7 @@ export default function AtsAnalysisPage() {
     const { data: report } = await response.json();
 
     // 3. Store result
-    const { data: newResult, error } = await createAtsResult(supabase, {
+    const { data: newResult, error } = await createAtsResult(supabase as any, {
         user_id: user.id,
         resume_version_id: resumeVersion.id,
         job_description_id: jobDescription.id,
@@ -115,7 +118,7 @@ export default function AtsAnalysisPage() {
       if (!response.ok) throw new Error('Parsing failed');
       const { data: parsedData } = await response.json();
       // Store result
-      const { data: jd, error } = await createJobDescription(supabase, {
+      const { data: jd, error } = await createJobDescription(supabase as any, {
         user_id: user.id,
         title: parsedData.title || 'Untitled JD',
         company: parsedData.company,
@@ -128,11 +131,11 @@ export default function AtsAnalysisPage() {
       // Trigger analysis - we need resumeVersionId, assuming latest for now.
       const { data: resumeVersion } = await supabase.from('resume_versions').select('*').eq('user_id', user.id).order('created_at', {ascending: false}).limit(1).single();
 
-      if (resumeVersion) {
+      if (resumeVersion && jd) {
           await runAnalysis(resumeVersion, jd);
       }
 
-      setJdText(jd.description || '');
+      if (jd) setJdText(jd.description || '');
       toast.success('Job description uploaded and parsed.');
       } catch (e) {
 

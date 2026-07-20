@@ -24,6 +24,36 @@ export default function OptimizerPage() {
   const [diffs, setDiffs] = useState<OptimizerDiff[]>(optimizerDiffs);
   const [regenerating, setRegenerating] = useState(false);
   const [downloading, setDownloading] = useState(false);
+  const [template, setTemplate] = useState('modern');
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null);
+
+  const generatePdf = async () => {
+    setDownloading(true);
+    try {
+        const response = await fetch('http://localhost:8000/api/generate-pdf', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+                user_id: user?.id,
+                resume_version_id: '...', // Need latest accepted version ID
+                resume: {}, // Pass current optimized resume JSON
+                template: template
+            }),
+        });
+        
+        if (!response.ok) throw new Error('PDF generation failed');
+        const { data } = await response.json();
+        
+        // Use Supabase storage URL (example)
+        const publicUrl = `https://your-project.supabase.co/storage/v1/object/public/resumes/${data.file_path}`;
+        setPdfUrl(publicUrl);
+        toast.success('PDF generated successfully');
+    } catch (e) {
+        toast.error('PDF generation failed');
+    } finally {
+        setDownloading(false);
+    }
+  };
 
   const setStatus = (id: string, status: Status) =>
     setDiffs((prev) => prev.map((d) => (d.id === id ? { ...d, status } : d)));

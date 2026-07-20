@@ -404,8 +404,51 @@ export interface Database {
           },
         ];
       };
+      generated_resumes: {
+        Row: {
+          id: string;
+          user_id: string;
+          resume_version_id: string;
+          template_name: string;
+          file_path: string;
+          created_at: string;
+        };
+        Insert: {
+          id?: string;
+          user_id: string;
+          resume_version_id: string;
+          template_name: string;
+          file_path: string;
+          created_at?: string;
+        };
+        Update: {
+          id?: string;
+          user_id?: string;
+          resume_version_id?: string;
+          template_name?: string;
+          file_path?: string;
+          created_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'generated_resumes_resume_version_id_fkey';
+            columns: ['resume_version_id'];
+            isOneToOne: false;
+            referencedRelation: 'resume_versions';
+            referencedColumns: ['id'];
+          },
+          {
+            foreignKeyName: 'generated_resumes_user_id_fkey';
+            columns: ['user_id'];
+            isOneToOne: false;
+            referencedRelation: 'profiles';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
     };
     Views: {
+
       [_ in never]: never;
     };
     Functions: {

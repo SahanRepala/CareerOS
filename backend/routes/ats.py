@@ -2,7 +2,9 @@ from fastapi import APIRouter, HTTPException
 from ats_engine.engine import analyze
 from ats_engine.optimizer import optimize_resume
 from pdf_generator.engine import generate_pdf
+from db.supabase import supabase
 from pydantic import BaseModel
+import uuid
 
 router = APIRouter()
 
@@ -16,6 +18,8 @@ class OptimizerRequest(BaseModel):
     ats_report: dict
 
 class PdfGenerationRequest(BaseModel):
+    user_id: str
+    resume_version_id: str
     resume: dict
     template: str
 
@@ -39,7 +43,24 @@ async def optimize_resume_endpoint(request: OptimizerRequest):
 async def generate_pdf_endpoint(request: PdfGenerationRequest):
     try:
         pdf_content = generate_pdf(request.resume, request.template)
-        # Note: In production, upload to Supabase and return URL.
-        return {"data": "PDF generated"} 
+        
+        file_path = f"generated_resumes/{uuid.uuid4()}.pdf"
+        
+        # Upload to Supabase
+        upload_res = supabase.storage.from_("resumes").upload(
+            path=file_path,
+            file=pdf_content,
+            file_options={"content-type": "application/pdf"}
+        )
+        
+        # Save metadata to DB
+        db_res = supabase.from_("generated_resumes").insert({
+            "user_id": request.user_id,
+            "resume_version_id": request.resume_version_id,
+            "template_name": request.template,
+            "file_path": file_path
+        }).select("*").single().execute()
+        
+        return {"data": db_res.data} 
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"PDF generation failed: {str(e)}")

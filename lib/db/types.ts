@@ -29,6 +29,10 @@ export type LearningRoadmap = Tables['learning_roadmaps']['Row'];
 export type LearningRoadmapInsert = Tables['learning_roadmaps']['Insert'];
 export type LearningRoadmapUpdate = Tables['learning_roadmaps']['Update'];
 
+export type GeneratedResume = Tables['generated_resumes']['Row'];
+export type GeneratedResumeInsert = Tables['generated_resumes']['Insert'];
+export type GeneratedResumeUpdate = Tables['generated_resumes']['Update'];
+
 export type Application = Tables['applications']['Row'];
 export type ApplicationInsert = Tables['applications']['Insert'];
 export type ApplicationUpdate = Tables['applications']['Update'];

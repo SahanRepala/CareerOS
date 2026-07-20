@@ -63,7 +63,7 @@ export default function ResumePage() {
 
       if (uploadError) throw uploadError;
 
-      const { data: resume, error: dbError } = await supabase.from('resumes').insert({
+      const { data: resume, error: dbError } = await (supabase.from('resumes') as any).insert({
         user_id: user.id,
         title: file.name,
         file_path: filePath,
@@ -85,7 +85,7 @@ export default function ResumePage() {
       const { data: parsedData } = await response.json();
       
       // Save parsedData to resume_versions
-      await createResumeVersion(supabase, {
+      await createResumeVersion(supabase as any, {
           resume_id: resume.id,
           user_id: user.id,
           content: parsedData as any
