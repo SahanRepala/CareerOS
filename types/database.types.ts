@@ -404,6 +404,50 @@ export interface Database {
           },
         ];
       };
+      interview_questions: {
+        Row: {
+          id: string;
+          interview_session_id: string;
+          category: string;
+          difficulty: string;
+          content: Json;
+          is_completed: boolean;
+          is_bookmarked: boolean;
+          created_at: string;
+          updated_at: string;
+        };
+        Insert: {
+          id?: string;
+          interview_session_id: string;
+          category: string;
+          difficulty: string;
+          content: Json;
+          is_completed?: boolean;
+          is_bookmarked?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Update: {
+          id?: string;
+          interview_session_id?: string;
+          category?: string;
+          difficulty?: string;
+          content?: Json;
+          is_completed?: boolean;
+          is_bookmarked?: boolean;
+          created_at?: string;
+          updated_at?: string;
+        };
+        Relationships: [
+          {
+            foreignKeyName: 'interview_questions_interview_session_id_fkey';
+            columns: ['interview_session_id'];
+            isOneToOne: false;
+            referencedRelation: 'interview_sessions';
+            referencedColumns: ['id'];
+          },
+        ];
+      };
       generated_resumes: {
         Row: {
           id: string;

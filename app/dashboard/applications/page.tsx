@@ -22,13 +22,25 @@ const columnAccent: Record<string, string> = {
 };
 
 export default function ApplicationsPage() {
-  const [apps, setApps] = useState<AppCard[]>(initial);
-  const [dragId, setDragId] = useState<string | null>(null);
+import { useEffect, useState } from 'react';
+import { useAuth } from '@/hooks/use-auth';
+import { createClient } from '@/lib/supabase/client';
+import { listApplications } from '@/lib/db/applications';
 
-  const move = (id: string, status: ApplicationStatus) => {
-    setApps((prev) => prev.map((a) => (a.id === id ? { ...a, status } : a)));
-    setDragId(null);
-  };
+// ... (in ApplicationsPage)
+  const { user } = useAuth();
+  const [apps, setApps] = useState<any[]>([]);
+  const supabase = createClient();
+
+  useEffect(() => {
+    if (user) {
+        listApplications(supabase as any, user.id).then(res => {
+            if (res.data) setApps(res.data);
+        });
+    }
+  }, [user]);
+
+  // Need to map the database application structure to ApplicationCard structure used by the UI.
 
   return (
     <>

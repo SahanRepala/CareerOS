@@ -17,14 +17,10 @@ import {
   DialogDescription,
 } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import {
-  interviewCategoryMeta,
-  interviewQuestions,
-  type Difficulty,
-  type InterviewQuestion,
-  type QuestionCategory,
-} from '@/lib/mock/interview';
 import { cn } from '@/lib/utils';
+import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/hooks/use-auth';
+import { useEffect } from 'react';
 
 const difficulties: { id: Difficulty; label: string }[] = [
   { id: 'easy', label: 'Easy' },

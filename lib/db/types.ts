@@ -33,6 +33,10 @@ export type GeneratedResume = Tables['generated_resumes']['Row'];
 export type GeneratedResumeInsert = Tables['generated_resumes']['Insert'];
 export type GeneratedResumeUpdate = Tables['generated_resumes']['Update'];
 
+export type InterviewQuestion = Tables['interview_questions']['Row'];
+export type InterviewQuestionInsert = Tables['interview_questions']['Insert'];
+export type InterviewQuestionUpdate = Tables['interview_questions']['Update'];
+
 export type Application = Tables['applications']['Row'];
 export type ApplicationInsert = Tables['applications']['Insert'];
 export type ApplicationUpdate = Tables['applications']['Update'];
