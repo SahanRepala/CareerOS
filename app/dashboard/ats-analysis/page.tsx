@@ -1,33 +1,41 @@
 'use client';
 
+import { useState } from 'react';
 import { motion } from 'framer-motion';
 import {
-  Cell,
-  Pie,
-  PieChart,
-  PolarAngleAxis,
-  PolarGrid,
-  Radar,
-  RadarChart,
-  ResponsiveContainer,
-  Tooltip,
-} from 'recharts';
-import { AlertCircle, Lightbulb, TrendingUp } from 'lucide-react';
+  Upload,
+  Save,
+  Loader2,
+  PieChart as PieChartIcon,
+} from 'lucide-react';
+import { toast } from 'sonner';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { ScoreRing } from '@/components/shared/score-ring';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
-import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { Textarea } from '@/components/ui/textarea';
+import { useAuth } from '@/hooks/use-auth';
+import { createClient } from '@/lib/supabase/client';
+import { createJobDescription } from '@/lib/db/job-descriptions';
+import { createAtsResult } from '@/lib/db/ats-results';
 import {
-  atsMissingSkills,
   atsOverview,
   atsPie,
   atsRadar,
-  atsRecommendations,
   atsSectionScores,
 } from '@/lib/mock/ats';
 import { cn } from '@/lib/utils';
+import {
+    Pie,
+    PieChart,
+    PolarAngleAxis,
+    PolarGrid,
+    Radar,
+    RadarChart,
+    ResponsiveContainer,
+    Tooltip,
+} from 'recharts';
 
 const tooltipStyle = {
   borderRadius: 12,
@@ -36,12 +44,6 @@ const tooltipStyle = {
   boxShadow: '0 8px 32px rgba(15,23,42,0.10)',
   fontSize: 12,
 };
-
-const priorityStyles = {
-  high: 'bg-rose-50 text-rose-600',
-  medium: 'bg-amber-50 text-amber-600',
-  low: 'bg-sky-50 text-sky-600',
-} as const;
 
 const metricCards = [
   { id: 'keyword', label: 'Keyword Match', value: atsOverview.keywordMatch, accent: 'primary' },
@@ -52,12 +54,130 @@ const metricCards = [
 ] as const;
 
 export default function AtsAnalysisPage() {
+  const { user } = useAuth();
+  const [jdText, setJdText] = useState('');
+  const [analysisData, setAnalysisData] = useState<any>(null);
+
+  const runAnalysis = async (resumeVersion: any, jobDescription: any) => {
+    // 1. Check for cached result
+    const { data: cachedResult } = await supabase
+        .from('ats_results')
+        .select('*')
+        .eq('resume_version_id', resumeVersion.id)
+        .eq('job_description_id', jobDescription.id)
+        .maybeSingle();
+
+    if (cachedResult) {
+        setAnalysisData(cachedResult);
+        return;
+    }
+
+    // 2. If no cache, run analysis
+    const response = await fetch('http://localhost:8000/api/analyze-ats', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ resume: resumeVersion.content, jd: jobDescription.structured_content }),
+    });
+    
+    if (!response.ok) throw new Error('Analysis failed');
+    const { data: report } = await response.json();
+
+    // 3. Store result
+    const { data: newResult, error } = await createAtsResult(supabase, {
+        user_id: user.id,
+        resume_version_id: resumeVersion.id,
+        job_description_id: jobDescription.id,
+        score: report.score,
+        details: report.details as any
+    });
+
+    if (error) throw new Error(error);
+    setAnalysisData(newResult);
+  };
+
+  const handleJDUpload = async (file?: File, pastedText?: string) => {
+    if (!user) return;
+    setUploading(true);
+    try {
+      const formData = new FormData();
+      if (file) {
+        if (file.size > 5 * 1024 * 1024) throw new Error('File too large');
+        formData.append('file', file);
+      } else if (pastedText) {
+        formData.append('text', pastedText);
+      }
+      
+      const response = await fetch('http://localhost:8000/api/parse-jd', {
+        method: 'POST',
+        body: formData,
+      });
+      
+      if (!response.ok) throw new Error('Parsing failed');
+      const { data: parsedData } = await response.json();
+      // Store result
+      const { data: jd, error } = await createJobDescription(supabase, {
+        user_id: user.id,
+        title: parsedData.title || 'Untitled JD',
+        company: parsedData.company,
+        description: pastedText || (file ? await file.text() : ''),
+        structured_content: parsedData as any
+      });
+
+      if (error) throw new Error(error);
+
+      // Trigger analysis - we need resumeVersionId, assuming latest for now.
+      const { data: resumeVersion } = await supabase.from('resume_versions').select('*').eq('user_id', user.id).order('created_at', {ascending: false}).limit(1).single();
+
+      if (resumeVersion) {
+          await runAnalysis(resumeVersion, jd);
+      }
+
+      setJdText(jd.description || '');
+      toast.success('Job description uploaded and parsed.');
+      } catch (e) {
+
+      toast.error('Upload failed', { description: e instanceof Error ? e.message : 'Unknown error' });
+    } finally {
+      setUploading(false);
+    }
+  };
+
   return (
     <>
       <DashboardHeader
         title="ATS Analysis"
         subtitle="How your resume scores against real applicant tracking systems."
       />
+
+      <div className="mb-6 grid gap-6 lg:grid-cols-3">
+        <Card className="shadow-card lg:col-span-3">
+            <CardHeader>
+                <CardTitle className="text-base">Target Job Description</CardTitle>
+                <CardDescription>Upload or paste a JD to score your resume.</CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+                <Textarea
+                    value={jdText}
+                    onChange={(e) => setJdText(e.target.value)}
+                    placeholder="Paste job description here..."
+                    rows={6}
+                />
+                <div className="flex gap-2">
+                    <Button onClick={() => handleJDUpload(undefined, jdText)} disabled={uploading}>
+                        {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Save className="mr-2 h-4 w-4" />}
+                        Save Job Description
+                    </Button>
+                    <input type="file" onChange={(e) => e.target.files && handleJDUpload(e.target.files[0])} className="hidden" id="jd-upload" />
+                    <Button asChild variant="outline">
+                        <label htmlFor="jd-upload">
+                            <Upload className="mr-2 h-4 w-4" />
+                            Upload File (PDF/TXT)
+                        </label>
+                    </Button>
+                </div>
+            </CardContent>
+        </Card>
+      </div>
 
       {/* Overview + radar */}
       <div className="grid gap-4 lg:grid-cols-3">
@@ -67,7 +187,7 @@ export default function AtsAnalysisPage() {
             <CardDescription>Recruiter-grade</CardDescription>
           </CardHeader>
           <CardContent className="flex flex-1 items-center justify-center pb-8">
-            <ScoreRing value={atsOverview.overall} size={170} label="out of 100" />
+            <ScoreRing value={analysisData?.score || 0} size={170} label="out of 100" />
           </CardContent>
         </Card>
 
@@ -120,7 +240,7 @@ export default function AtsAnalysisPage() {
         ))}
       </div>
 
-      {/* Section scores + pie */}
+      {/* Section scores */}
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <Card className="shadow-card lg:col-span-2">
           <CardHeader>
@@ -156,120 +276,7 @@ export default function AtsAnalysisPage() {
             ))}
           </CardContent>
         </Card>
-
-        <Card className="shadow-card">
-          <CardHeader>
-            <CardTitle className="text-base">Keyword coverage</CardTitle>
-            <CardDescription>Matched vs missing</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="h-52">
-              <ResponsiveContainer width="100%" height="100%">
-                <PieChart>
-                  <Pie
-                    data={atsPie}
-                    dataKey="value"
-                    nameKey="name"
-                    innerRadius={50}
-                    outerRadius={80}
-                    paddingAngle={3}
-                  >
-                    {atsPie.map((entry) => (
-                      <Cell key={entry.name} fill={entry.color} stroke="none" />
-                    ))}
-                  </Pie>
-                  <Tooltip contentStyle={tooltipStyle} />
-                </PieChart>
-              </ResponsiveContainer>
-            </div>
-            <div className="mt-3 space-y-2">
-              {atsPie.map((p) => (
-                <div key={p.name} className="flex items-center gap-2 text-xs">
-                  <span
-                    className="h-2.5 w-2.5 rounded-full"
-                    style={{ background: p.color }}
-                  />
-                  <span className="flex-1 text-muted-foreground">{p.name}</span>
-                  <span className="font-semibold text-foreground">{p.value}</span>
-                </div>
-              ))}
-            </div>
-          </CardContent>
-        </Card>
       </div>
-
-      {/* Missing skills */}
-      <Card className="mt-4 shadow-card">
-        <CardHeader className="flex-row items-center justify-between space-y-0">
-          <div>
-            <CardTitle className="text-base">Missing skills</CardTitle>
-            <CardDescription>High-weight keywords found in matching JDs</CardDescription>
-          </div>
-          <Button variant="outline" size="sm" className="rounded-lg">
-            <TrendingUp className="mr-1.5 h-3.5 w-3.5" />
-            View roadmap
-          </Button>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {atsMissingSkills.map((s) => (
-            <div
-              key={s.id}
-              className="flex flex-col gap-2 rounded-xl border border-border p-4 sm:flex-row sm:items-center sm:justify-between"
-            >
-              <div className="flex items-center gap-3">
-                <span className="flex h-9 w-9 items-center justify-center rounded-lg bg-rose-50 text-rose-600">
-                  <AlertCircle className="h-4 w-4" />
-                </span>
-                <div>
-                  <p className="text-sm font-medium text-foreground">{s.name}</p>
-                  <p className="text-xs text-muted-foreground">{s.context}</p>
-                </div>
-              </div>
-              <div className="flex items-center gap-3">
-                <div className="w-28">
-                  <Progress value={s.weight} className="h-1.5" />
-                </div>
-                <span className="w-10 text-right text-xs font-semibold text-foreground">
-                  {s.weight}%
-                </span>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Recommendations */}
-      <Card className="mt-4 shadow-card">
-        <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-base">
-            <Lightbulb className="h-4 w-4 text-accent" />
-            Recommendations
-          </CardTitle>
-          <CardDescription>Prioritized fixes to raise your score</CardDescription>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {atsRecommendations.map((r) => (
-            <div
-              key={r.id}
-              className="flex flex-col gap-2 rounded-xl border border-border p-4 sm:flex-row sm:items-start"
-            >
-              <Badge
-                className={cn(
-                  'flex-none uppercase tracking-wide',
-                  priorityStyles[r.priority]
-                )}
-                variant="secondary"
-              >
-                {r.priority}
-              </Badge>
-              <div className="flex-1">
-                <p className="text-sm font-medium text-foreground">{r.title}</p>
-                <p className="mt-1 text-xs leading-relaxed text-muted-foreground">{r.detail}</p>
-              </div>
-            </div>
-          ))}
-        </CardContent>
-      </Card>
     </>
   );
 }

@@ -24,26 +24,101 @@ import { Textarea } from '@/components/ui/textarea';
 import { Label } from '@/components/ui/label';
 import { Badge } from '@/components/ui/badge';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
-import { uploadedResumeFile, resumeData } from '@/lib/mock/resume';
+import { createClient } from '@/lib/supabase/client';
+import { useAuth } from '@/hooks/use-auth';
+import { createResumeVersion } from '@/lib/db/resume-versions';
+import { resumeData as initialResumeData } from '@/lib/mock/resume';
 import { cn } from '@/lib/utils';
 
 type FileState = 'empty' | 'uploading' | 'uploaded';
 
 export default function ResumePage() {
-  const [fileState, setFileState] = useState<FileState>('uploaded');
+  const { user } = useAuth();
+  const [fileState, setFileState] = useState<FileState>('empty');
+  const [fileData, setFileData] = useState<{ name: string; size: number; path: string } | null>(null);
+  const [resumeData, setResumeData] = useState(initialResumeData);
   const [dragOver, setDragOver] = useState(false);
   const [saving, setSaving] = useState(false);
   const inputRef = useRef<HTMLInputElement>(null);
+  const supabase = createClient();
 
-  const handleFiles = (files: FileList | null) => {
-    if (!files || files.length === 0) return;
+  const handleFiles = async (files: FileList | null) => {
+    if (!files || files.length === 0 || !user) return;
+    const file = files[0];
+    if (file.size > 10 * 1024 * 1024) {
+      toast.error('File too large', { description: 'Maximum size is 10MB.' });
+      return;
+    }
+    if (!['application/pdf', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document'].includes(file.type)) {
+      toast.error('Invalid file type', { description: 'Only PDF and DOCX are supported.' });
+      return;
+    }
+
     setFileState('uploading');
-    setTimeout(() => {
-      setFileState('uploaded');
-      toast.success('Resume uploaded', {
-        description: files[0]?.name + ' parsed into editable sections.',
+    try {
+      const filePath = `${user.id}/${crypto.randomUUID()}-${file.name}`;
+      const { error: uploadError } = await supabase.storage
+        .from('resumes')
+        .upload(filePath, file);
+
+      if (uploadError) throw uploadError;
+
+      const { data: resume, error: dbError } = await supabase.from('resumes').insert({
+        user_id: user.id,
+        title: file.name,
+        file_path: filePath,
+        file_name: file.name
+      }).select().single();
+
+      if (dbError) throw dbError;
+
+      // Call FastAPI backend
+      const formData = new FormData();
+      formData.append('file', file);
+      
+      const response = await fetch('http://localhost:8000/api/parse-resume', {
+        method: 'POST',
+        body: formData,
       });
-    }, 1200);
+      
+      if (!response.ok) throw new Error('Parsing failed');
+      const { data: parsedData } = await response.json();
+      
+      // Save parsedData to resume_versions
+      await createResumeVersion(supabase, {
+          resume_id: resume.id,
+          user_id: user.id,
+          content: parsedData as any
+      });
+      
+      setResumeData(parsedData);
+      setFileData({ name: file.name, size: file.size, path: filePath });
+      setFileState('uploaded');
+      toast.success('Resume uploaded and parsed successfully.');
+    } catch (e) {
+      console.error(e);
+      setFileState('empty');
+      toast.error('Upload or parsing failed', { description: 'Please try again.' });
+    }
+  };
+
+  const handleDelete = async () => {
+    if (!fileData || !user) return;
+    try {
+      const { error: storageError } = await supabase.storage
+        .from('resumes')
+        .remove([fileData.path]);
+      if (storageError) throw storageError;
+
+      const { error: dbError } = await supabase.from('resumes').delete().eq('file_path', fileData.path);
+      if (dbError) throw dbError;
+
+      setFileData(null);
+      setFileState('empty');
+      toast.success('Resume deleted.');
+    } catch (e) {
+      toast.error('Failed to delete resume.');
+    }
   };
 
   const handleSave = () => {
@@ -129,7 +204,7 @@ export default function ResumePage() {
                 </motion.div>
               )}
 
-              {fileState === 'uploaded' && (
+              {fileState === 'uploaded' && fileData && (
                 <motion.div
                   key="uploaded"
                   initial={{ opacity: 0 }}
@@ -143,19 +218,14 @@ export default function ResumePage() {
                     </span>
                     <div className="min-w-0 flex-1">
                       <p className="truncate text-sm font-medium text-foreground">
-                        {uploadedResumeFile.name}
+                        {fileData.name}
                       </p>
                       <p className="text-xs text-muted-foreground">
-                        {(uploadedResumeFile.size / 1024).toFixed(0)} KB ·{' '}
-                        {uploadedResumeFile.pages} pages
+                        {(fileData.size / 1024).toFixed(0)} KB
                       </p>
-                      <div className="mt-2 flex items-center gap-1.5 text-xs font-medium text-emerald-600">
-                        <CheckCircle2 className="h-3.5 w-3.5" />
-                        Parsed successfully
-                      </div>
                     </div>
                     <button
-                      onClick={() => setFileState('empty')}
+                      onClick={handleDelete}
                       className="flex-none rounded-lg p-1 text-muted-foreground hover:bg-muted hover:text-foreground"
                       aria-label="Remove file"
                     >

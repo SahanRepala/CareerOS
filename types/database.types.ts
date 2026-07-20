@@ -72,6 +72,8 @@ export interface Database {
           user_id: string;
           title: string;
           is_primary: boolean;
+          file_path: string | null;
+          file_name: string | null;
           created_at: string;
           updated_at: string;
         };
@@ -80,6 +82,8 @@ export interface Database {
           user_id: string;
           title?: string;
           is_primary?: boolean;
+          file_path?: string | null;
+          file_name?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -88,6 +92,8 @@ export interface Database {
           user_id?: string;
           title?: string;
           is_primary?: boolean;
+          file_path?: string | null;
+          file_name?: string | null;
           created_at?: string;
           updated_at?: string;
         };
@@ -153,6 +159,7 @@ export interface Database {
           title: string;
           company: string | null;
           description: string | null;
+          structured_content: Json | null;
           source_url: string | null;
           created_at: string;
           updated_at: string;
@@ -163,6 +170,7 @@ export interface Database {
           title: string;
           company?: string | null;
           description?: string | null;
+          structured_content?: Json | null;
           source_url?: string | null;
           created_at?: string;
           updated_at?: string;
@@ -173,6 +181,7 @@ export interface Database {
           title?: string;
           company?: string | null;
           description?: string | null;
+          structured_content?: Json | null;
           source_url?: string | null;
           created_at?: string;
           updated_at?: string;
