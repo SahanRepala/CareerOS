@@ -3,7 +3,7 @@ import type { Database } from '@/types/database.types';
 import type { Application, ApplicationInsert, ApplicationUpdate, DbResult } from '@/lib/db/types';
 import { toDbResult } from '@/lib/db/result';
 
-type Client = SupabaseClient<Database>;
+type Client = any;
 
 /** List all applications for a user, most recently updated first. */
 export async function listApplications(

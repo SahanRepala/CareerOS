@@ -7,8 +7,17 @@ import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { resumeVersions } from '@/lib/mock/versions';
 import { cn } from '@/lib/utils';
+
+interface ResumeVersion {
+    id: string;
+    version: string;
+    current: boolean;
+    date: string;
+    atsScore: number;
+    note: string;
+}
+const resumeVersions: ResumeVersion[] = [];
 
 export default function VersionsPage() {
   const restore = (v: string) =>

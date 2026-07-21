@@ -8,7 +8,7 @@ import type {
 } from '@/lib/db/types';
 import { toDbResult } from '@/lib/db/result';
 
-type Client = SupabaseClient<Database>;
+type Client = any;
 
 /** List all job descriptions saved by a user, most recently updated first. */
 export async function listJobDescriptions(

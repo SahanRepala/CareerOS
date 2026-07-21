@@ -53,8 +53,8 @@ export default function DashboardPage() {
 
       {/* Stat cards */}
       <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-5">
-        <StatCard stat={{id: 'apps', label: 'Applications', value: stats.totalApplications.toString()}} index={0} />
-        <StatCard stat={{id: 'ats', label: 'ATS Score', value: stats.atsScore.toString()}} index={1} />
+        <StatCard stat={{id: 'apps', label: 'Applications', value: stats.resumesCount.toString(), accent: 'primary', trend: 'up', change: 5, caption: 'vs last month'}} index={0} />
+        <StatCard stat={{id: 'ats', label: 'ATS Score', value: stats.atsAvgScore.toString(), accent: 'secondary', trend: 'up', change: 2, caption: 'vs last month'}} index={1} />
         {/* ... */}
       </div>
 

@@ -7,18 +7,24 @@ import { ScoreRing } from '@/components/shared/score-ring';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Progress } from '@/components/ui/progress';
 import { Badge } from '@/components/ui/badge';
-import {
-  roadmapWeeks,
-  skillGapItems,
-  skillGapSummary,
-} from '@/lib/mock/skill-gap';
+import type { SkillGapItem, RoadmapWeek, SkillGapSummary } from '@/types/skill-gap';
 import { cn } from '@/lib/utils';
 
-const categoryStyles = {
+const categoryStyles: Record<string, string> = {
   core: 'bg-primary/10 text-primary',
   adjacent: 'bg-secondary/10 text-secondary',
   stretch: 'bg-accent/10 text-accent',
-} as const;
+};
+
+const roadmapWeeks: RoadmapWeek[] = [];
+const skillGapItems: SkillGapItem[] = [];
+const skillGapSummary: SkillGapSummary = {
+    currentMatch: 0,
+    targetMatch: 0,
+    missingSkills: 0,
+    estimatedWeeks: 0,
+    estimatedHours: 0,
+};
 
 export default function SkillGapPage() {
   const weeksDone = roadmapWeeks.filter((w) => w.done).length;

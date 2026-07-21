@@ -9,9 +9,10 @@ import {
 } from '@/components/ui/accordion';
 import { SectionHeading } from '@/components/shared/section-heading';
 import { Reveal } from '@/components/shared/reveal';
-import { landingFaqs } from '@/lib/mock/landing';
+// Mock data removed
 
 export function Faq() {
+  const landingFaqs: { q: string; a: string }[] = [];
   return (
     <section id="faq" className="relative py-24">
       <div className="mx-auto max-w-3xl px-4 sm:px-6 lg:px-8">

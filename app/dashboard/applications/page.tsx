@@ -1,18 +1,24 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { motion } from 'framer-motion';
-import { MapPin, Plus } from 'lucide-react';
+import { Plus } from 'lucide-react';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { Card, CardContent } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import {
-  applicationColumns,
-  applications as initial,
-  type ApplicationCard as AppCard,
-  type ApplicationStatus,
-} from '@/lib/mock/applications';
+import { useAuth } from '@/hooks/use-auth';
+import { createClient } from '@/lib/supabase/client';
+import { listApplications } from '@/lib/db/applications';
 import { cn } from '@/lib/utils';
+import type { Application } from '@/lib/db/types';
+
+// Define status columns locally since mock data is removed
+const applicationColumns = [
+  { id: 'wishlist', title: 'Wishlist', accent: 'primary' },
+  { id: 'applied', title: 'Applied', accent: 'accent' },
+  { id: 'interviewing', title: 'Interviewing', accent: 'secondary' },
+  { id: 'offered', title: 'Offered', accent: 'destructive' },
+] as const;
 
 const columnAccent: Record<string, string> = {
   primary: 'bg-primary',
@@ -22,25 +28,23 @@ const columnAccent: Record<string, string> = {
 };
 
 export default function ApplicationsPage() {
-import { useEffect, useState } from 'react';
-import { useAuth } from '@/hooks/use-auth';
-import { createClient } from '@/lib/supabase/client';
-import { listApplications } from '@/lib/db/applications';
-
-// ... (in ApplicationsPage)
   const { user } = useAuth();
-  const [apps, setApps] = useState<any[]>([]);
+  const [apps, setApps] = useState<Application[]>([]);
+  const [dragId, setDragId] = useState<string | null>(null);
   const supabase = createClient();
 
   useEffect(() => {
     if (user) {
-        listApplications(supabase as any, user.id).then(res => {
-            if (res.data) setApps(res.data);
-        });
+      listApplications(supabase, user.id).then((res) => {
+        if (res.data) setApps(res.data);
+      });
     }
-  }, [user]);
+  }, [user, supabase]);
 
-  // Need to map the database application structure to ApplicationCard structure used by the UI.
+  const move = (appId: string, status: string) => {
+    // Implement update logic if needed
+    console.log(`Move ${appId} to ${status}`);
+  };
 
   return (
     <>
@@ -61,7 +65,7 @@ import { listApplications } from '@/lib/db/applications';
             >
               <div className="mb-3 flex items-center justify-between px-1">
                 <div className="flex items-center gap-2">
-                  <span className={cn('h-2 w-2 rounded-full', columnAccent[col.accent])} />
+                  <span className={cn('h-2 w-2 rounded-full', columnAccent[col.accent as keyof typeof columnAccent])} />
                   <span className="text-sm font-semibold text-foreground">{col.title}</span>
                   <span className="text-xs text-muted-foreground">{items.length}</span>
                 </div>
@@ -89,28 +93,13 @@ import { listApplications } from '@/lib/db/applications';
                     >
                       <CardContent className="p-4">
                         <div className="flex items-start gap-3">
-                          <span className="flex h-9 w-9 flex-none items-center justify-center rounded-lg bg-gradient-to-br from-primary to-secondary text-sm font-semibold text-white">
-                            {a.logo}
-                          </span>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-foreground">
                               {a.company}
                             </p>
-                            <p className="truncate text-xs text-muted-foreground">{a.role}</p>
+                            <p className="truncate text-xs text-muted-foreground">{a.role_title}</p>
                           </div>
                         </div>
-                        <div className="mt-3 flex flex-wrap items-center gap-1.5 text-xs text-muted-foreground">
-                          <span className="inline-flex items-center gap-1">
-                            <MapPin className="h-3 w-3" />
-                            {a.location}
-                          </span>
-                          <span>·</span>
-                          <span>{new Date(a.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}</span>
-                        </div>
-                        {a.salary && (
-                          <p className="mt-2 text-xs font-medium text-foreground">{a.salary}</p>
-                        )}
-                        <p className="mt-2 line-clamp-2 text-xs text-muted-foreground">{a.notes}</p>
                       </CardContent>
                     </Card>
                   </motion.div>

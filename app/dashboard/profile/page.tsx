@@ -25,7 +25,28 @@ import { Badge } from '@/components/ui/badge';
 import { ErrorState } from '@/components/shared/error-state';
 import { useAuth } from '@/hooks/use-auth';
 import { useProfile } from '@/hooks/use-profile';
-import { educationPlaceholder, experiencePlaceholder } from '@/lib/mock/profile';
+// Mock data removed
+
+interface Education {
+    id: string;
+    school: string;
+    degree: string;
+    field: string;
+    start: string;
+    end: string;
+}
+
+interface Experience {
+    id: string;
+    role: string;
+    company: string;
+    start: string;
+    end: string;
+    summary: string;
+}
+
+const educationPlaceholder: Education[] = [];
+const experiencePlaceholder: Experience[] = [];
 import { getInitials } from '@/lib/utils';
 
 type FormState = {

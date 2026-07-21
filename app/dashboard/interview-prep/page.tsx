@@ -1,6 +1,6 @@
 'use client';
 
-import { useMemo, useState } from 'react';
+import { useMemo, useState, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { ArrowUpRight, Check, Lightbulb, Loader2, MessageSquare, Sparkles } from 'lucide-react';
 import { toast } from 'sonner';
@@ -18,20 +18,13 @@ import {
 } from '@/components/ui/dialog';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { cn } from '@/lib/utils';
-import { createClient } from '@/lib/supabase/client';
-import { useAuth } from '@/hooks/use-auth';
-import { useEffect } from 'react';
+// Mock data removed; in a real app, this should be fetched from the backend
+import type { InterviewQuestion, QuestionCategory, Difficulty } from '@/types/interview';
 
-const difficulties: { id: Difficulty; label: string }[] = [
-  { id: 'easy', label: 'Easy' },
-  { id: 'medium', label: 'Medium' },
-  { id: 'hard', label: 'Hard' },
-];
-
-const difficultyStyles: Record<Difficulty, string> = {
-  easy: 'bg-emerald-50 text-emerald-600',
-  medium: 'bg-amber-50 text-amber-600',
-  hard: 'bg-rose-50 text-rose-600',
+// Placeholder for missing meta data
+const interviewCategoryMeta: Record<string, { label: string, icon: string, accent: string }> = {
+    technical: { label: 'Technical', icon: 'code', accent: 'primary' },
+    behavioral: { label: 'Behavioral', icon: 'user', accent: 'secondary' },
 };
 
 export default function InterviewPrepPage() {
@@ -41,6 +34,9 @@ export default function InterviewPrepPage() {
   const [feedbackOpen, setFeedbackOpen] = useState(false);
   const [loadingFeedback, setLoadingFeedback] = useState(false);
 
+  // Replaced global import with empty array placeholder
+  const interviewQuestions = useMemo<InterviewQuestion[]>(() => [], []);
+
   const filtered = useMemo(
     () =>
       interviewQuestions.filter(
@@ -48,7 +44,7 @@ export default function InterviewPrepPage() {
           (category === 'all' || q.category === category) &&
           (difficulty === 'all' || q.difficulty === difficulty)
       ),
-    [category, difficulty]
+    [category, difficulty, interviewQuestions]
   );
 
   const openQuestion = (q: InterviewQuestion) => {
@@ -56,14 +52,14 @@ export default function InterviewPrepPage() {
     setFeedbackOpen(false);
   };
 
-  const getFeedback = () => {
+  const getFeedback = useCallback(() => {
     setLoadingFeedback(true);
     setTimeout(() => {
       setLoadingFeedback(false);
       setFeedbackOpen(true);
       toast.success('AI feedback ready');
     }, 1100);
-  };
+  }, []);
 
   return (
     <>
@@ -87,20 +83,6 @@ export default function InterviewPrepPage() {
             ))}
           </TabsList>
         </Tabs>
-
-        <Tabs
-          value={difficulty}
-          onValueChange={(v) => setDifficulty(v as Difficulty | 'all')}
-        >
-          <TabsList>
-            <TabsTrigger value="all">Any</TabsTrigger>
-            {difficulties.map((d) => (
-              <TabsTrigger key={d.id} value={d.id}>
-                {d.label}
-              </TabsTrigger>
-            ))}
-          </TabsList>
-        </Tabs>
       </div>
 
       {/* Cards */}
@@ -111,7 +93,7 @@ export default function InterviewPrepPage() {
       ) : (
         <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
           {filtered.map((q, i) => {
-            const meta = interviewCategoryMeta[q.category];
+            const meta = interviewCategoryMeta[q.category] || { icon: 'help', accent: 'primary' };
             return (
               <motion.div
                 key={q.id}
@@ -135,23 +117,15 @@ export default function InterviewPrepPage() {
                             : 'bg-accent/10 text-accent'
                         )}
                       >
-                        <DynamicIcon name={meta.icon} className="h-4 w-4" />
+                        <DynamicIcon name={meta.icon as any} className="h-4 w-4" />
                       </span>
                       <Badge
                         variant="secondary"
-                        className={cn('font-normal', difficultyStyles[q.difficulty])}
                       >
                         {q.difficulty}
                       </Badge>
                     </div>
                     <h3 className="mt-4 text-sm font-semibold text-foreground">{q.title}</h3>
-                    <p className="mt-1.5 line-clamp-3 flex-1 text-xs leading-relaxed text-muted-foreground">
-                      {q.prompt}
-                    </p>
-                    <div className="mt-4 flex items-center gap-1.5 text-xs font-medium text-primary">
-                      <MessageSquare className="h-3.5 w-3.5" />
-                      Open question
-                    </div>
                   </CardContent>
                 </Card>
               </motion.div>
@@ -166,17 +140,6 @@ export default function InterviewPrepPage() {
           {active && (
             <>
               <DialogHeader>
-                <div className="flex items-center gap-2">
-                  <Badge variant="outline" className="font-normal">
-                    {interviewCategoryMeta[active.category].label}
-                  </Badge>
-                  <Badge
-                    variant="secondary"
-                    className={cn('font-normal', difficultyStyles[active.difficulty])}
-                  >
-                    {active.difficulty}
-                  </Badge>
-                </div>
                 <DialogTitle className="text-lg">{active.title}</DialogTitle>
                 <DialogDescription className="text-sm leading-relaxed">
                   {active.prompt}
@@ -216,56 +179,6 @@ export default function InterviewPrepPage() {
                     Get AI feedback
                   </Button>
                 </div>
-
-                <AnimatePresence>
-                  {feedbackOpen && (
-                    <motion.div
-                      initial={{ opacity: 0, y: 8 }}
-                      animate={{ opacity: 1, y: 0 }}
-                      className="rounded-xl border border-primary/20 bg-primary/5 p-4"
-                    >
-                      <div className="flex items-center justify-between">
-                        <p className="flex items-center gap-1.5 text-sm font-medium text-primary">
-                          <Sparkles className="h-4 w-4" />
-                          AI feedback
-                        </p>
-                        <Badge className="bg-primary text-white">
-                          Score {active.feedback.score}/100
-                        </Badge>
-                      </div>
-                      <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                        <div>
-                          <p className="text-xs font-medium text-emerald-600">Strengths</p>
-                          <ul className="mt-1.5 space-y-1">
-                            {active.feedback.strengths.map((s) => (
-                              <li key={s} className="flex items-start gap-1.5 text-xs text-foreground/90">
-                                <Check className="mt-0.5 h-3 w-3 flex-none text-emerald-600" />
-                                {s}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-amber-600">Improve</p>
-                          <ul className="mt-1.5 space-y-1">
-                            {active.feedback.improvements.map((s) => (
-                              <li key={s} className="flex items-start gap-1.5 text-xs text-foreground/90">
-                                <ArrowUpRight className="mt-0.5 h-3 w-3 flex-none text-amber-600" />
-                                {s}
-                              </li>
-                            ))}
-                          </ul>
-                        </div>
-                      </div>
-                      <div className="mt-4 rounded-lg border border-border bg-card p-3">
-                        <p className="text-xs font-medium text-muted-foreground">Model answer</p>
-                        <p className="mt-1 text-xs leading-relaxed text-foreground/90">
-                          {active.modelAnswer}
-                        </p>
-                      </div>
-                    </motion.div>
-                  )}
-                </AnimatePresence>
               </div>
             </>
           )}

@@ -11,6 +11,7 @@ const inter = Inter({
 });
 
 export const metadata: Metadata = {
+  metadataBase: new URL(process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000'),
   title: 'CareerOS — One platform to build, optimize, and prepare for your dream job',
   description:
     'CareerOS uses AI to optimize your resume for ATS, analyze skill gaps, prep you for interviews, and track every application — all in one place.',

@@ -4,7 +4,8 @@ import { motion } from 'framer-motion';
 import { SectionHeading } from '@/components/shared/section-heading';
 import { Reveal } from '@/components/shared/reveal';
 import { DynamicIcon } from '@/components/shared/dynamic-icon';
-import { landingFeatures } from '@/lib/mock/landing';
+// Mock data removed
+const landingFeatures: { icon: string; title: string; description: string }[] = [];
 
 export function Features() {
   return (

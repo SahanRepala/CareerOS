@@ -3,7 +3,12 @@
 import { SectionHeading } from '@/components/shared/section-heading';
 import { Reveal } from '@/components/shared/reveal';
 import { DynamicIcon } from '@/components/shared/dynamic-icon';
-import { landingSteps } from '@/lib/mock/landing';
+// Mock data removed
+const landingSteps: { step: number; icon: string; title: string; description: string }[] = [
+    { step: 1, icon: 'upload', title: 'Upload', description: 'Upload your resume and the target job description.' },
+    { step: 2, icon: 'zap', title: 'Optimize', description: 'Our AI optimizes your resume against the JD.' },
+    { step: 3, icon: 'check', title: 'Apply', description: 'Download your optimized resume and apply with confidence.' },
+];
 
 export function HowItWorks() {
   return (

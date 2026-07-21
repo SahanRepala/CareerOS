@@ -6,7 +6,6 @@ import {
   Upload,
   Save,
   Loader2,
-  PieChart as PieChartIcon,
 } from 'lucide-react';
 import { toast } from 'sonner';
 import { DashboardHeader } from '@/components/dashboard/dashboard-header';
@@ -19,16 +18,8 @@ import { useAuth } from '@/hooks/use-auth';
 import { createClient } from '@/lib/supabase/client';
 import { createJobDescription } from '@/lib/db/job-descriptions';
 import { createAtsResult } from '@/lib/db/ats-results';
-import {
-  atsOverview,
-  atsPie,
-  atsRadar,
-  atsSectionScores,
-} from '@/lib/mock/ats';
 import { cn } from '@/lib/utils';
 import {
-    Pie,
-    PieChart,
     PolarAngleAxis,
     PolarGrid,
     Radar,
@@ -36,46 +27,37 @@ import {
     ResponsiveContainer,
     Tooltip,
 } from 'recharts';
-
-const tooltipStyle = {
-  borderRadius: 12,
-  border: '1px solid hsl(var(--border))',
-  background: 'hsl(var(--card))',
-  boxShadow: '0 8px 32px rgba(15,23,42,0.10)',
-  fontSize: 12,
-};
-
-const metricCards = [
-  { id: 'keyword', label: 'Keyword Match', value: atsOverview.keywordMatch, accent: 'primary' },
-  { id: 'format', label: 'Formatting', value: atsOverview.formatting, accent: 'secondary' },
-  { id: 'experience', label: 'Experience', value: atsOverview.experience, accent: 'accent' },
-  { id: 'readability', label: 'Readability', value: atsOverview.readability, accent: 'primary' },
-  { id: 'action', label: 'Action Verbs', value: atsOverview.actionVerbs, accent: 'secondary' },
-] as const;
+import type { AtsResult } from '@/lib/db/types';
 
 export default function AtsAnalysisPage() {
   const { user } = useAuth();
   const supabase = createClient();
   const [jdText, setJdText] = useState('');
-  const [analysisData, setAnalysisData] = useState<any>(null);
+  const [analysisData, setAnalysisData] = useState<AtsResult | null>(null);
   const [uploading, setUploading] = useState(false);
+  
+  // Real data derived from analysisData, or defaults if null
+  const details = (analysisData?.details as any) || { keywordMatch: 0, formatting: 0, experience: 0, readability: 0, actionVerbs: 0 };
+  const radarData = [
+      { metric: 'Keyword Match', value: details.keywordMatch || 0 },
+      { metric: 'Formatting', value: details.formatting || 0 },
+      { metric: 'Experience', value: details.experience || 0 },
+      { metric: 'Readability', value: details.readability || 0 },
+      { metric: 'Action Verbs', value: details.actionVerbs || 0 },
+  ];
+
+  const metricCards = [
+      { id: 'keyword', label: 'Keyword Match', value: details.keywordMatch || 0 },
+      { id: 'format', label: 'Formatting', value: details.formatting || 0 },
+      { id: 'experience', label: 'Experience', value: details.experience || 0 },
+      { id: 'readability', label: 'Readability', value: details.readability || 0 },
+      { id: 'action', label: 'Action Verbs', value: details.actionVerbs || 0 },
+  ] as const;
 
   const runAnalysis = async (resumeVersion: any, jobDescription: any) => {
     if (!user) return;
-    // 1. Check for cached result
-    const { data: cachedResult } = await supabase
-        .from('ats_results')
-        .select('*')
-        .eq('resume_version_id', resumeVersion.id)
-        .eq('job_description_id', jobDescription.id)
-        .maybeSingle();
-
-    if (cachedResult) {
-        setAnalysisData(cachedResult);
-        return;
-    }
-
-    // 2. If no cache, run analysis
+    
+    // 2. Run analysis
     const response = await fetch('http://localhost:8000/api/analyze-ats', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
@@ -86,12 +68,12 @@ export default function AtsAnalysisPage() {
     const { data: report } = await response.json();
 
     // 3. Store result
-    const { data: newResult, error } = await createAtsResult(supabase as any, {
+    const { data: newResult, error } = await createAtsResult(supabase, {
         user_id: user.id,
         resume_version_id: resumeVersion.id,
         job_description_id: jobDescription.id,
         score: report.score,
-        details: report.details as any
+        details: report.details
     });
 
     if (error) throw new Error(error);
@@ -117,28 +99,34 @@ export default function AtsAnalysisPage() {
       
       if (!response.ok) throw new Error('Parsing failed');
       const { data: parsedData } = await response.json();
+      
       // Store result
-      const { data: jd, error } = await createJobDescription(supabase as any, {
+      const { data: jd, error } = await createJobDescription(supabase, {
         user_id: user.id,
         title: parsedData.title || 'Untitled JD',
         company: parsedData.company,
         description: pastedText || (file ? await file.text() : ''),
-        structured_content: parsedData as any
+        structured_content: parsedData
       });
 
-      if (error) throw new Error(error);
+      if (error || !jd) throw new Error(error || 'Failed to create job description');
 
-      // Trigger analysis - we need resumeVersionId, assuming latest for now.
-      const { data: resumeVersion } = await supabase.from('resume_versions').select('*').eq('user_id', user.id).order('created_at', {ascending: false}).limit(1).single();
+      // Trigger analysis - assuming latest resume version
+      const { data: resumeVersion } = await supabase
+        .from('resume_versions')
+        .select('*')
+        .eq('user_id', user.id)
+        .order('created_at', {ascending: false})
+        .limit(1)
+        .maybeSingle();
 
-      if (resumeVersion && jd) {
+      if (resumeVersion) {
           await runAnalysis(resumeVersion, jd);
       }
 
-      if (jd) setJdText(jd.description || '');
+      setJdText(jd.description || '');
       toast.success('Job description uploaded and parsed.');
       } catch (e) {
-
       toast.error('Upload failed', { description: e instanceof Error ? e.message : 'Unknown error' });
     } finally {
       setUploading(false);
@@ -182,7 +170,6 @@ export default function AtsAnalysisPage() {
         </Card>
       </div>
 
-      {/* Overview + radar */}
       <div className="grid gap-4 lg:grid-cols-3">
         <Card className="flex flex-col items-center justify-center shadow-card">
           <CardHeader className="text-center">
@@ -202,7 +189,7 @@ export default function AtsAnalysisPage() {
           <CardContent>
             <div className="h-72">
               <ResponsiveContainer width="100%" height="100%">
-                <RadarChart data={atsRadar} outerRadius={100}>
+                <RadarChart data={radarData} outerRadius={100}>
                   <PolarGrid stroke="hsl(var(--border))" />
                   <PolarAngleAxis
                     dataKey="metric"
@@ -215,7 +202,6 @@ export default function AtsAnalysisPage() {
                     fillOpacity={0.25}
                     strokeWidth={2}
                   />
-                  <Tooltip contentStyle={tooltipStyle} />
                 </RadarChart>
               </ResponsiveContainer>
             </div>
@@ -223,7 +209,6 @@ export default function AtsAnalysisPage() {
         </Card>
       </div>
 
-      {/* Metric cards */}
       <div className="mt-4 grid gap-4 sm:grid-cols-2 lg:grid-cols-5">
         {metricCards.map((m, i) => (
           <motion.div
@@ -243,7 +228,6 @@ export default function AtsAnalysisPage() {
         ))}
       </div>
 
-      {/* Section scores */}
       <div className="mt-4 grid gap-4 lg:grid-cols-3">
         <Card className="shadow-card lg:col-span-2">
           <CardHeader>
@@ -251,32 +235,7 @@ export default function AtsAnalysisPage() {
             <CardDescription>Per-section parse reliability</CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
-            {atsSectionScores.map((s, i) => (
-              <motion.div
-                key={s.id}
-                initial={{ opacity: 0, x: -8 }}
-                animate={{ opacity: 1, x: 0 }}
-                transition={{ delay: i * 0.04 }}
-                className="space-y-1.5"
-              >
-                <div className="flex items-center justify-between text-sm">
-                  <span className="font-medium text-foreground">{s.label}</span>
-                  <span className="font-semibold text-foreground">{s.score}</span>
-                </div>
-                <Progress
-                  value={s.score}
-                  className="h-2"
-                  indicatorClassName={
-                    s.score >= 90
-                      ? 'bg-emerald-500'
-                      : s.score >= 75
-                      ? 'bg-primary'
-                      : 'bg-amber-500'
-                  }
-                />
-                <p className="text-xs text-muted-foreground">{s.detail}</p>
-              </motion.div>
-            ))}
+            <p className="text-sm text-muted-foreground">Detailed section scores are not currently available.</p>
           </CardContent>
         </Card>
       </div>

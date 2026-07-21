@@ -15,26 +15,37 @@ import { DashboardHeader } from '@/components/dashboard/dashboard-header';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
-import { optimizerDiffs, type OptimizerDiff } from '@/lib/mock/optimizer';
 import { cn } from '@/lib/utils';
+import { useAuth } from '@/hooks/use-auth';
 
-type Status = OptimizerDiff['status'];
+type Status = 'pending' | 'accepted' | 'rejected';
+
+interface OptimizerDiff {
+  id: string;
+  section: string;
+  original: string;
+  optimized: string;
+  reason: string;
+  status: Status;
+}
 
 export default function OptimizerPage() {
-  const [diffs, setDiffs] = useState<OptimizerDiff[]>(optimizerDiffs);
+  const { user } = useAuth();
+  const [diffs, setDiffs] = useState<OptimizerDiff[]>([]);
   const [regenerating, setRegenerating] = useState(false);
   const [downloading, setDownloading] = useState(false);
   const [template, setTemplate] = useState('modern');
   const [pdfUrl, setPdfUrl] = useState<string | null>(null);
 
   const generatePdf = async () => {
+    if (!user) return;
     setDownloading(true);
     try {
         const response = await fetch('http://localhost:8000/api/generate-pdf', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({
-                user_id: user?.id,
+                user_id: user.id,
                 resume_version_id: '...', // Need latest accepted version ID
                 resume: {}, // Pass current optimized resume JSON
                 template: template

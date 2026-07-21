@@ -3,7 +3,7 @@ import type { Database } from '@/types/database.types';
 import type { AtsResult, AtsResultInsert, DbResult } from '@/lib/db/types';
 import { toDbResult } from '@/lib/db/result';
 
-type Client = SupabaseClient<Database>;
+type Client = any;
 
 /** List all ATS results for a resume version, newest first. */
 export async function listAtsResultsForResumeVersion(

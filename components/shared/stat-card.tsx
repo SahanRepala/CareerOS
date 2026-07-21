@@ -4,7 +4,17 @@ import { motion } from 'framer-motion';
 import { ArrowUpRight, ArrowDownRight, Minus } from 'lucide-react';
 import { Card } from '@/components/ui/card';
 import { cn } from '@/lib/utils';
-import type { StatItem } from '@/lib/mock/dashboard';
+
+export interface StatItem {
+  id: string;
+  label: string;
+  value: string | number;
+  suffix?: string;
+  accent: 'primary' | 'secondary' | 'accent' | 'destructive';
+  trend: 'up' | 'down' | 'neutral';
+  change: number;
+  caption: string;
+}
 
 const accentMap: Record<StatItem['accent'], string> = {
   primary: 'text-primary',

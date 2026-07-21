@@ -27,8 +27,17 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { createClient } from '@/lib/supabase/client';
 import { useAuth } from '@/hooks/use-auth';
 import { createResumeVersion } from '@/lib/db/resume-versions';
-import { resumeData as initialResumeData } from '@/lib/mock/resume';
+import type { ResumeData } from '@/types/resume';
 import { cn } from '@/lib/utils';
+
+const initialResumeData: ResumeData = {
+    summary: { text: '' },
+    experience: [],
+    education: [],
+    projects: [],
+    skills: [],
+    certificates: [],
+};
 
 type FileState = 'empty' | 'uploading' | 'uploaded';
 

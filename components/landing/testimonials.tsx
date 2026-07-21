@@ -4,7 +4,10 @@ import { motion } from 'framer-motion';
 import { Quote } from 'lucide-react';
 import { SectionHeading } from '@/components/shared/section-heading';
 import { Reveal } from '@/components/shared/reveal';
-import { landingTestimonials } from '@/lib/mock/landing';
+// Mock data removed
+const landingTestimonials: { name: string; initials: string; quote: string; role: string; company: string }[] = [
+    { name: 'Alex Johnson', initials: 'AJ', quote: 'CareerOS helped me land my dream role at Google!', role: 'Software Engineer', company: 'Google' },
+];
 
 export function Testimonials() {
   return (
@@ -29,7 +32,7 @@ export function Testimonials() {
               >
                 <Quote className="h-7 w-7 text-primary/20" />
                 <blockquote className="mt-3 text-sm leading-relaxed text-foreground">
-                  "{t.quote}"
+                  &quot;{t.quote}&quot;
                 </blockquote>
                 <figcaption className="mt-5 flex items-center gap-3">
                   <span className="flex h-10 w-10 items-center justify-center rounded-full bg-gradient-to-br from-primary to-secondary text-xs font-semibold text-white">

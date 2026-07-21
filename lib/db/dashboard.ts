@@ -1,6 +1,7 @@
-import { supabase } from '@/lib/supabase/client';
+import { createClient } from '@/lib/supabase/client';
 
 export async function getDashboardStats(userId: string) {
+  const supabase = createClient();
   // Aggregate stats from all modules efficiently
   const [resumes, ats, interviews, pdfs, roadmaps, jobDescriptions] = await Promise.all([
     supabase.from('resumes').select('id', { count: 'exact' }).eq('user_id', userId),
@@ -11,8 +12,10 @@ export async function getDashboardStats(userId: string) {
     supabase.from('job_descriptions').select('id', { count: 'exact' }).eq('user_id', userId),
   ]);
 
-  const atsScores = ats.data?.map((r) => Number(r.score)) || [];
-  const avgAtsScore = atsScores.length > 0 ? atsScores.reduce((a, b) => a + b, 0) / atsScores.length : 0;
+  // Type assertion for Supabase data to fix 'never' inference
+  const atsData = ats.data as { score: number }[] | null;
+  const atsScores = atsData?.map((r) => Number(r.score)) || [];
+  const avgAtsScore = atsScores.length > 0 ? atsScores.reduce((a: number, b: number) => a + b, 0) / atsScores.length : 0;
 
   // ...
   const { data: recentActivity } = await supabase
